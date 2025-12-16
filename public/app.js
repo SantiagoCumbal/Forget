@@ -7,14 +7,28 @@ const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // 1. DETECTAR SESIÓN AL CARGAR
 document.addEventListener('DOMContentLoaded', async () => {
-    // La librería busca automáticamente el #access_token en la barra de direcciones
-    const { data: { session }, error } = await _supabase.auth.getSession();
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
 
-    if (error) {
+    const type = searchParams.get('type') || hashParams.get('type');
+    const accessToken = searchParams.get('access_token') || hashParams.get('access_token');
+
+    try {
+        if (type !== 'recovery' || !accessToken) {
+            throw new Error('Auth session missing!');
+        }
+
+        // Con template que pasa ?access_token=...&type=recovery (sin refresh_token)
+        const { error } = await _supabase.auth.verifyOtp({
+            token_hash: accessToken,
+            type: 'recovery',
+        });
+
+        if (error) throw error;
+        console.log('Sesión de recuperación establecida via verifyOtp');
+    } catch (error) {
         document.getElementById('error').textContent = error.message;
         document.getElementById('error').style.display = 'block';
-    } else if (session) {
-        console.log("¡Sesión recuperada del hash!");
     }
 });
 
